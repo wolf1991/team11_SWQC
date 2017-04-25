@@ -1,9 +1,10 @@
+package team11;
+
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.net.URI;
+import java.sql.Connection;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -16,56 +17,63 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Bing {
+public class Enrichment {
 	private String apiKey;
 	private int offset;
 	private int limit;
 
-	public Bing(String apiKey, int offset, int limit) {
+	public Enrichment(String apiKey, int offset, int limit) {
 		this.apiKey = apiKey;
 		this.offset = offset;
 		this.limit = limit;
 	}
 	
-	public void searchResults() throws FileNotFoundException {
-		Scanner in = new Scanner(new File("randomSamplingOfQueries.txt"));
+	public void searchResults(Connection conn) throws Exception {
+		
+		ArrayList<String[]> in = new ArrayList<String[]>();
+
+		in = jdbctest.getSpecificStudentsQuery(conn);
+		
 		PrintStream out = new PrintStream(new File("enrichedQueries.txt"));
-		int count=1;
-		if(in.hasNextLine()){
-		while(in.hasNextLine()){
-			String query = in.nextLine();
-			out.println("\n"+count);
-			System.out.println(count + ". " + query);
-			count++;
-			String results = search(query, offset, limit);
+		for (int i = 0; i < in.size(); i ++) {
+
+			String[] query = in.get(i);
+			
+			out.println("\n"+ (i+1) + query[1]);
+			System.out.println((i+1) + ". " + query[1]);
+			String results = search(query[1], offset, limit);
+			
 			ArrayList<String> resultName = new ArrayList<>();
-			ArrayList<String> resultSnippet = new ArrayList<>();      
+			ArrayList<String> resultSnippet = new ArrayList<>();
+			
+			String resultString = "";
 
 			try {
 				JSONObject searchResponseJson = new JSONObject(results);
 				JSONArray resultArray = searchResponseJson.getJSONObject("webPages").getJSONArray("value");
-				for (int i = 0; i < resultArray.length(); i++) {
-					JSONObject result = resultArray.getJSONObject(i);
+				for (int j = 0; j < resultArray.length(); j++) {
+					JSONObject result = resultArray.getJSONObject(j);
 					resultName.add(result.getString("name"));
 					resultSnippet.add(result.getString("snippet"));                
 				}
 			} catch (JSONException e) {
 				//Debug.printLn("Error in Json reading");
+				System.out.println(e);
 				out.println("xxxxxxxxxxxxxxxx");
 				out.println("xxxxxxxxxxxxxxxx");
 			}
-			for (int i = 0; i < resultName.size(); i++){
-				out.println(resultName.get(i));
-				out.println(resultSnippet.get(i));
+			for (int j = 0; j < resultName.size(); j++){
+				resultString += resultName.get(j) + "\\n" + resultSnippet.get(j) + "\\n";
+				out.println(resultName.get(j));
+				out.println(resultSnippet.get(j));
 			}
 			out.println();
+			String[] a = { resultString, query[0], query[1] };
+			System.out.println(resultString);
+			DBUtil.post(conn, "UPDATE `cs_project_swqc`.`enrich_query` SET `information` = ? WHERE `student_id` = ? AND `search_query` = ?;", a);
 		}
-		in.close();
+		out.close();
 		System.out.println("\nDone enriching!\n");
-		}
-		else 
-			System.out.println("\nEmpty File.\n");
-
 	}
 
 	private String search(String keyString, int offset, int limit) {
@@ -82,9 +90,10 @@ public class Bing {
 			HttpGet request = new HttpGet(uri);
 			request.setHeader("Ocp-Apim-Subscription-Key", this.apiKey);
 
-
+			System.out.println(request);
 			HttpResponse response = httpclient.execute(request);
 			HttpEntity entity = response.getEntity();
+			System.out.println(response);
 
 			if (entity != null) {
 				return (EntityUtils.toString(entity));
@@ -94,4 +103,19 @@ public class Bing {
 		}
 		return "{}";
 	}
+	
+	
+	public static void main(String[] args) throws Exception {
+		Connection conn = null;
+		try {
+			conn = DBUtil.getConnection();
+			Enrichment bingSearch = new Enrichment("5ad4ae8a7635441fb2a6817f76904cf6", 0, 10);
+			bingSearch.searchResults(conn);
+		} catch(Exception e) {
+			System.out.println(e);
+		} finally {
+			DBUtil.closeConnection(conn);
+		}
+		
+	}	
 }

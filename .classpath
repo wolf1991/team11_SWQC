@@ -15,5 +15,7 @@
 	<classpathentry kind="lib" path="jar/java-json.jar"/>
 	<classpathentry kind="lib" path="jar/jna-4.1.0.jar"/>
 	<classpathentry kind="lib" path="jar/jna-platform-4.1.0.jar"/>
+	<classpathentry kind="lib" path="jar/mysql-connector-java-5.1.41-bin.jar"/>
+	<classpathentry kind="lib" path="jar/javacsv.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
