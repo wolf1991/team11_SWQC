@@ -1,5 +1,3 @@
-package team11.tim.removequery;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
